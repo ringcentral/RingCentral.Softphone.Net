@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RingCentral.Softphone.Net", "RingCentral.Softphone.Net\RingCentral.Softphone.Net.csproj", "{E95A2FF2-BBED-4BA3-B851-447B67E32F9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RingCentral.Softphone.Demo", "RingCentral.Softphone.Demo\RingCentral.Softphone.Demo.csproj", "{9C0E0EBA-0D86-4E40-A13D-3F9914C70129}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{E95A2FF2-BBED-4BA3-B851-447B67E32F9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E95A2FF2-BBED-4BA3-B851-447B67E32F9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E95A2FF2-BBED-4BA3-B851-447B67E32F9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C0E0EBA-0D86-4E40-A13D-3F9914C70129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C0E0EBA-0D86-4E40-A13D-3F9914C70129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C0E0EBA-0D86-4E40-A13D-3F9914C70129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C0E0EBA-0D86-4E40-A13D-3F9914C70129}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
