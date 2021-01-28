@@ -27,6 +27,21 @@ namespace RingCentral.Softphone.Demo
                     Environment.GetEnvironmentVariable("RINGCENTRAL_PASSWORD")
                 );
                 Console.WriteLine(rc.token.access_token);
+                var sipProvision = await rc.Restapi().ClientInfo().SipProvision().Post(new CreateSipRegistrationRequest
+                {
+                    sipInfo = new[]
+                    {
+                        new SIPInfoRequest
+                        {
+                            transport = "TCP"
+                        }
+                    },
+                    device = new DeviceInfoRequest
+                    {
+                        computerName = Environment.MachineName
+                    }
+                });
+                Console.WriteLine(sipProvision.sipInfo[0].outboundProxy);
                 await rc.Revoke();
             }).GetAwaiter().GetResult();
             // using var client = new TcpClient();
