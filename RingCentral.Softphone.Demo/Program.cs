@@ -94,8 +94,23 @@ namespace RingCentral.Softphone.Demo
                 var regex = new Regex(", nonce=\"(.+?)\"");
                 var match = regex.Match(wwwAuth);
                 var nonce = match.Groups[1].Value;
+                var auth = RingCentral.Softphone.Net.Utils.GenerateAuthorization(sipInfo, "REGISTER", nonce);
+                sipMessage.Headers["Authorization"] = auth;
+                sipMessage.Headers["CSeq"] = "8083 REGISTER";
+                sipMessage.Headers["Via"] = $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}";
                 
-                Console.WriteLine(nonce);
+                // write
+                message = sipMessage.ToMessage();
+                Console.WriteLine(message);
+                bytes = Encoding.UTF8.GetBytes(message);
+                await networkStream.WriteAsync(bytes, 0, bytes.Length);
+                
+                // 100 trying
+                bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+                
+                bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
             }).GetAwaiter().GetResult();
         }
     }
