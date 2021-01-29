@@ -1,10 +1,10 @@
 ﻿using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using RingCentral;
 using dotenv.net;
+using RingCentral.Softphone.Net;
 
 namespace RingCentral.Softphone.Demo
 {
@@ -16,7 +16,7 @@ namespace RingCentral.Softphone.Demo
 
             Task.Run(async () =>
             {
-                var rc = new RestClient(
+                using var rc = new RestClient(
                     Environment.GetEnvironmentVariable("RINGCENTRAL_CLIENT_ID"),
                     Environment.GetEnvironmentVariable("RINGCENTRAL_CLIENT_SECRET"),
                     Environment.GetEnvironmentVariable("RINGCENTRAL_SERVER_URL")
@@ -26,7 +26,6 @@ namespace RingCentral.Softphone.Demo
                     Environment.GetEnvironmentVariable("RINGCENTRAL_EXTENSION"),
                     Environment.GetEnvironmentVariable("RINGCENTRAL_PASSWORD")
                 );
-                Console.WriteLine(rc.token.access_token);
                 var sipProvision = await rc.Restapi().ClientInfo().SipProvision().Post(new CreateSipRegistrationRequest
                 {
                     sipInfo = new[]
@@ -41,30 +40,42 @@ namespace RingCentral.Softphone.Demo
                         computerName = Environment.MachineName
                     }
                 });
-                Console.WriteLine(sipProvision.sipInfo[0].outboundProxy);
-                await rc.Revoke();
+                var sipInfo = sipProvision.sipInfo[0];
+                
+                using var client = new TcpClient();
+                var tokens = sipInfo.outboundProxy.Split(":");
+                await client.ConnectAsync(tokens[0], int.Parse(tokens[1]));
+
+                await using var networkStream = client.GetStream();
+                var userAgent = "RingCentral.Softphone.Net";
+                var fakeDomain = $"{Guid.NewGuid().ToString()}.invalid";
+                var fakeEmail = $"{Guid.NewGuid().ToString()}@{fakeDomain}";
+                var sipMessage = new SipMessage($"REGISTER sip:{sipInfo.domain} SIP/2.0", new Dictionary<string, string>
+                {
+                    {"Call-ID", Guid.NewGuid().ToString()},
+                    {"User-Agent", userAgent},
+                    {"Contact", $"<sip:{fakeEmail};transport=tcp>;expires=600"},
+                    {"Via", $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}"},
+                    {"From", $"<sip:{sipInfo.username}@{sipInfo.domain}>;tag={Guid.NewGuid().ToString()}"},
+                    {"To", $"<sip:{sipInfo.username}@{sipInfo.domain}>"},
+                    {"CSeq", "8082 REGISTER"},
+                    {"Content-Length", "0"},
+                    {"Max-Forwards", "70"},
+                }, "");
+                
+                // write
+                var message = sipMessage.ToMessage();
+                Console.WriteLine(message);
+                var bytes = Encoding.UTF8.GetBytes(message);
+                await networkStream.WriteAsync(bytes, 0, bytes.Length);
+                
+                // read
+                var cache = new byte[1024];
+                var bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache,0,bytesRead));
+                bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache,0,bytesRead));
             }).GetAwaiter().GetResult();
-            // using var client = new TcpClient();
-            //
-            // var hostname = "webcode.me";
-            // client.Connect(hostname, 80);
-            //
-            // using NetworkStream networkStream = client.GetStream();
-            // networkStream.ReadTimeout = 2000;
-            //
-            // using var writer = new StreamWriter(networkStream);
-            //
-            // var message = "HEAD / HTTP/1.1\r\nHost: webcode.me\r\nUser-Agent: C# program\r\n" 
-            //               + "Connection: close\r\nAccept: text/html\r\n\r\n";
-            //
-            // Console.WriteLine(message);
-            //
-            // using var reader = new StreamReader(networkStream, Encoding.UTF8);
-            //
-            // byte[] bytes = Encoding.UTF8.GetBytes(message);
-            // networkStream.Write(bytes, 0, bytes.Length);
-            //
-            // Console.WriteLine(reader.ReadToEnd());
         }
     }
 }

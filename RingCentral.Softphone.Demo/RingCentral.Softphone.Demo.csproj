@@ -16,4 +16,8 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\RingCentral.Softphone.Net\RingCentral.Softphone.Net.csproj" />
+    </ItemGroup>
+
 </Project>
