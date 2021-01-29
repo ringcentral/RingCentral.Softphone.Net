@@ -126,10 +126,8 @@ namespace RingCentral.Softphone.Demo
 
                 // RTP
                 RTPSession rtpSession = new RTPSession(false, false, false);
-                rtpSession.AcceptRtpFromAny = true;
                 MediaStreamTrack audioTrack = new MediaStreamTrack(new List<AudioFormat>
                     {new AudioFormat(SDPWellKnownMediaFormatsEnum.PCMU)});
-                audioTrack.IsRemote = false;
                 rtpSession.addTrack(audioTrack);
                 var result =
                     rtpSession.SetRemoteDescription(SdpType.offer, SDP.ParseSDPDescription(inviteSipMessage.Body));
@@ -141,9 +139,6 @@ namespace RingCentral.Softphone.Demo
                     {
                         Console.WriteLine("OnRtpPacketReceived");
                     };
-
-                // start the rtp session
-                await rtpSession.Start().ConfigureAwait(false);
 
                 sipMessage =
                     new SipMessage("SIP/2.0 200 OK", new Dictionary<string, string>
