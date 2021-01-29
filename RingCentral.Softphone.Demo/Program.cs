@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using dotenv.net;
 using RingCentral.Softphone.Net;
@@ -101,36 +103,47 @@ namespace RingCentral.Softphone.Demo
                 sipMessage.Headers["Authorization"] = auth;
                 sipMessage.Headers["CSeq"] = "8083 REGISTER";
                 sipMessage.Headers["Via"] = $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}";
-                
+
                 // write
                 message = sipMessage.ToMessage();
                 Console.WriteLine(message);
                 bytes = Encoding.UTF8.GetBytes(message);
                 await networkStream.WriteAsync(bytes, 0, bytes.Length);
-                
+
                 // 100 trying
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
-                
+
                 // 200 OK
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
-                
+
                 // Inbound INVITE
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
                 var inviteMessage = Encoding.UTF8.GetString(cache, 0, bytesRead);
                 var inviteSipMessage = SipMessage.FromMessage(inviteMessage);
-                
+
                 // RTP
                 RTPSession rtpSession = new RTPSession(false, false, false);
-                MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat>
-                {
-                    new SDPAudioVideoMediaFormat(SDPWellKnownMediaFormatsEnum.PCMU)
-                });
+                rtpSession.AcceptRtpFromAny = true;
+                MediaStreamTrack audioTrack = new MediaStreamTrack(new List<AudioFormat>
+                    {new AudioFormat(SDPWellKnownMediaFormatsEnum.PCMU)});
+                audioTrack.IsRemote = false;
                 rtpSession.addTrack(audioTrack);
-                var result = rtpSession.SetRemoteDescription(SdpType.offer, SDP.ParseSDPDescription(inviteSipMessage.Body));
+                var result =
+                    rtpSession.SetRemoteDescription(SdpType.offer, SDP.ParseSDPDescription(inviteSipMessage.Body));
+                Console.WriteLine(result);
                 var answer = rtpSession.CreateAnswer(null);
+
+                rtpSession.OnRtpPacketReceived +=
+                    (IPEndPoint remoteEndPoint, SDPMediaTypesEnum mediaType, RTPPacket rtpPacket) =>
+                    {
+                        Console.WriteLine("OnRtpPacketReceived");
+                    };
+
+                // start the rtp session
+                await rtpSession.Start().ConfigureAwait(false);
 
                 sipMessage =
                     new SipMessage("SIP/2.0 200 OK", new Dictionary<string, string>
@@ -146,18 +159,22 @@ namespace RingCentral.Softphone.Demo
                         {"Supported", "outbound"},
                         {"Call-Id", inviteSipMessage.Headers["Call-Id"]},
                     }, answer.ToString());
-                
+
                 // write
                 message = sipMessage.ToMessage();
                 Console.WriteLine(message);
                 bytes = Encoding.UTF8.GetBytes(message);
                 await networkStream.WriteAsync(bytes, 0, bytes.Length);
-                
+
                 // ACK
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
 
-                // Do not exit
+                // The purpose of sending a DTMF tone is if our SDP had a private IP address then the server needs to get at least
+                // one RTP packet to know where to send.
+                await rtpSession.SendDtmf(0, CancellationToken.None);
+
+                // Do not exit, wait for the incoming audio
                 await Task.Delay(999999999);
             }).GetAwaiter().GetResult();
         }
