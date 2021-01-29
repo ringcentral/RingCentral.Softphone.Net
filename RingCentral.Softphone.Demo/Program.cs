@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using dotenv.net;
 using RingCentral.Softphone.Net;
+using SIPSorcery.Net;
+using SIPSorcery.SIP.App;
+using SIPSorceryMedia.Abstractions;
 
 namespace RingCentral.Softphone.Demo
 {
@@ -109,8 +112,53 @@ namespace RingCentral.Softphone.Demo
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
                 
+                // 200 OK
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
                 Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+                
+                // Inbound INVITE
+                bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+                var inviteMessage = Encoding.UTF8.GetString(cache, 0, bytesRead);
+                var inviteSipMessage = SipMessage.FromMessage(inviteMessage);
+                
+                // RTP
+                RTPSession rtpSession = new RTPSession(false, false, false);
+                MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat>
+                {
+                    new SDPAudioVideoMediaFormat(SDPWellKnownMediaFormatsEnum.PCMU)
+                });
+                rtpSession.addTrack(audioTrack);
+                var result = rtpSession.SetRemoteDescription(SdpType.offer, SDP.ParseSDPDescription(inviteSipMessage.Body));
+                var answer = rtpSession.CreateAnswer(null);
+
+                sipMessage =
+                    new SipMessage("SIP/2.0 200 OK", new Dictionary<string, string>
+                    {
+                        {"Contact", $"<sip:{fakeEmail};transport=tcp>"},
+                        {"Content-Type", "application/sdp"},
+                        {"Content-Length", answer.ToString().Length.ToString()},
+                        {"User-Agent", "RingCentral.Softphone.Net"},
+                        {"Via", inviteSipMessage.Headers["Via"]},
+                        {"From", inviteSipMessage.Headers["From"]},
+                        {"To", $"{inviteSipMessage.Headers["To"]};tag={Guid.NewGuid().ToString()}"},
+                        {"CSeq", inviteSipMessage.Headers["CSeq"]},
+                        {"Supported", "outbound"},
+                        {"Call-Id", inviteSipMessage.Headers["Call-Id"]},
+                    }, answer.ToString());
+                
+                // write
+                message = sipMessage.ToMessage();
+                Console.WriteLine(message);
+                bytes = Encoding.UTF8.GetBytes(message);
+                await networkStream.WriteAsync(bytes, 0, bytes.Length);
+                
+                // ACK
+                bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+
+                // Do not exit
+                await Task.Delay(999999999);
             }).GetAwaiter().GetResult();
         }
     }
