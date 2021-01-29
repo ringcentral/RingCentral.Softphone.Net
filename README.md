@@ -2,9 +2,14 @@
 
 RingCentral Softphone SDK for .NET
 
-Ref: https://github.com/sipsorcery-org/sipsorcery/blob/master/src/app/SIPUserAgents/SIPUserAgent.cs#L637
+This SDK helps you to create a SIP device using SIP over TCP + RTP. WebRTC is NOT used here.
 
 
-## Disclaimer
+## Screenshot
 
-This project is still in its early stage. Nothing serious has been done yet.
+![screenshot](./screenshot.png)
+
+
+## Ref 
+
+- https://github.com/sipsorcery-org/sipsorcery/issues/239
