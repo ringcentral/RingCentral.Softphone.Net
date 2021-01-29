@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using dotenv.net;
 using RingCentral.Softphone.Net;
@@ -41,7 +42,7 @@ namespace RingCentral.Softphone.Demo
                     }
                 });
                 var sipInfo = sipProvision.sipInfo[0];
-                
+
                 using var client = new TcpClient();
                 var tokens = sipInfo.outboundProxy.Split(":");
                 await client.ConnectAsync(tokens[0], int.Parse(tokens[1]));
@@ -62,19 +63,39 @@ namespace RingCentral.Softphone.Demo
                     {"Content-Length", "0"},
                     {"Max-Forwards", "70"},
                 }, "");
-                
+
                 // write
                 var message = sipMessage.ToMessage();
                 Console.WriteLine(message);
                 var bytes = Encoding.UTF8.GetBytes(message);
                 await networkStream.WriteAsync(bytes, 0, bytes.Length);
-                
+
                 // read
-                var cache = new byte[1024];
+                var cache = new byte[10240];
+
+                // 100 trying
                 var bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
-                Console.WriteLine(Encoding.UTF8.GetString(cache,0,bytesRead));
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+
+                // 401 Unauthorized
                 bytesRead = await networkStream.ReadAsync(cache, 0, cache.Length);
-                Console.WriteLine(Encoding.UTF8.GetString(cache,0,bytesRead));
+                Console.WriteLine(Encoding.UTF8.GetString(cache, 0, bytesRead));
+                var nonceMessage = SipMessage.FromMessage(Encoding.UTF8.GetString(cache, 0, bytesRead));
+                var wwwAuth = "";
+                if (nonceMessage.Headers.ContainsKey("WWW-Authenticate"))
+                {
+                    wwwAuth = nonceMessage.Headers["WWW-Authenticate"];
+                }
+                else if (nonceMessage.Headers.ContainsKey("Www-Authenticate"))
+                {
+                    wwwAuth = nonceMessage.Headers["Www-Authenticate"];
+                }
+
+                var regex = new Regex(", nonce=\"(.+?)\"");
+                var match = regex.Match(wwwAuth);
+                var nonce = match.Groups[1].Value;
+                
+                Console.WriteLine(nonce);
             }).GetAwaiter().GetResult();
         }
     }
