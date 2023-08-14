@@ -22,7 +22,7 @@ namespace RingCentral.Softphone.Net
             return Md5($"{ha1}:{nonce}:{ha2}");
         }
 
-        public static string GenerateAuthorization(SIPInfoResponse sipInfo, string method, string nonce)
+        public static string GenerateAuthorization(SipInfoResponse sipInfo, string method, string nonce)
         {
             var username = sipInfo.authorizationId;
             var password = sipInfo.password;

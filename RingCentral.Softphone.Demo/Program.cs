@@ -18,7 +18,7 @@ namespace RingCentral.Softphone.Demo
     {
         static void Main(string[] args)
         {
-            DotEnv.Config(true);
+            DotEnv.Load(new DotEnvOptions().WithOverwriteExistingVars());
 
             Task.Run(async () =>
             {
