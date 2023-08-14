@@ -66,7 +66,7 @@ namespace RingCentral.Softphone.Demo
                     {"To", $"<sip:{sipInfo.username}@{sipInfo.domain}>"},
                     {"CSeq", "8082 REGISTER"},
                     {"Content-Length", "0"},
-                    {"Max-Forwards", "70"},
+                    {"Max-Forwards", "70"}
                 }, "");
 
                 // write
@@ -99,7 +99,7 @@ namespace RingCentral.Softphone.Demo
                 var regex = new Regex(", nonce=\"(.+?)\"");
                 var match = regex.Match(wwwAuth);
                 var nonce = match.Groups[1].Value;
-                var auth = RingCentral.Softphone.Net.Utils.GenerateAuthorization(sipInfo, "REGISTER", nonce);
+                var auth = Net.Utils.GenerateAuthorization(sipInfo, "REGISTER", nonce);
                 sipMessage.Headers["Authorization"] = auth;
                 sipMessage.Headers["CSeq"] = "8083 REGISTER";
                 sipMessage.Headers["Via"] = $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}";
@@ -152,7 +152,7 @@ namespace RingCentral.Softphone.Demo
                         {"To", $"{inviteSipMessage.Headers["To"]};tag={Guid.NewGuid().ToString()}"},
                         {"CSeq", inviteSipMessage.Headers["CSeq"]},
                         {"Supported", "outbound"},
-                        {"Call-Id", inviteSipMessage.Headers["Call-Id"]},
+                        {"Call-Id", inviteSipMessage.Headers["Call-Id"]}
                     }, answer.ToString());
 
                 // write

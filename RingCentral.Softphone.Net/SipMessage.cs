@@ -6,20 +6,20 @@ namespace RingCentral.Softphone.Net
 {
     public class SipMessage
     {
+        public SipMessage(string subject, Dictionary<string, string> headers, string body)
+        {
+            Subject = subject;
+            Headers = headers;
+            Body = body;
+        }
+
         public string Subject { get; set; }
         public Dictionary<string, string> Headers { get; set; }
         public string Body { get; set; }
 
-        public SipMessage(string subject, Dictionary<string, string> headers, string body)
-        {
-            this.Subject = subject;
-            this.Headers = headers;
-            this.Body = body;
-        }
-
         public static SipMessage FromMessage(string message)
         {
-            var tokens = message.Split(new []{"\r\n\r\n"}, StringSplitOptions.None);
+            var tokens = message.Split(new[] {"\r\n\r\n"}, StringSplitOptions.None);
             var init = tokens[0];
             var tail = tokens.Skip(1);
             var body = string.Join("\r\n\r\n", tail);
@@ -34,13 +34,10 @@ namespace RingCentral.Softphone.Net
         public string ToMessage()
         {
             var list = new List<string>();
-            list.Add(this.Subject);
-            foreach (var item in this.Headers)
-            {
-                list.Add($"{item.Key}: {item.Value}");
-            }
+            list.Add(Subject);
+            foreach (var item in Headers) list.Add($"{item.Key}: {item.Value}");
             list.Add("");
-            list.Add(this.Body);
+            list.Add(Body);
             return string.Join("\r\n", list);
         }
     }

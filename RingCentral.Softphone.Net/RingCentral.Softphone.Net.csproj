@@ -5,8 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="RingCentral.Net" Version="5.0.0-beta4" />
-      <PackageReference Include="SIPSorcery" Version="5.0.14-pre" />
+        <PackageReference Include="RingCentral.Net" Version="5.0.0-beta4"/>
+        <PackageReference Include="SIPSorcery" Version="5.0.14-pre"/>
     </ItemGroup>
 
 </Project>
