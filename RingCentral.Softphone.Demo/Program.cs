@@ -100,6 +100,7 @@ namespace RingCentral.Softphone.Demo
                     await Task.Delay(100);
                     if (cachedMessages.Length > 0)
                     {
+                        // this check is to make sure we don't receive only half of a message
                         if (noMoreMessage)
                         {
                             var tempTokens = cachedMessages.Split("\r\n\r\nSIP/2.0 ");
@@ -111,7 +112,10 @@ namespace RingCentral.Softphone.Demo
                             }
 
                             var sipMessage = SipMessage.FromMessage(cachedMessages);
+                            
+                            // reset variables
                             cachedMessages = "";
+                            noMoreMessage = false;
 
                             // the message after we reply to INVITE
                             if (sipMessage.Subject.StartsWith("ACK sip:"))
@@ -184,6 +188,7 @@ namespace RingCentral.Softphone.Demo
                         }
                         else
                         {
+                            // so next time we process it instead of waiting for another 100ms 
                             noMoreMessage = true;
                         }
                     }
