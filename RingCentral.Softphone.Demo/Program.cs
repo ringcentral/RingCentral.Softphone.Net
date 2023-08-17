@@ -51,21 +51,10 @@ namespace RingCentral.Softphone.Demo
                 });
                 var ws = new WebsocketClient(new Uri(wsUri), factory);
                 ws.ReconnectTimeout = null;
-                ws.MessageReceived.Subscribe(responseMessage =>
-                {
-                   Console.WriteLine(responseMessage.Text);
-                });
-                ws.DisconnectionHappened.Subscribe(info =>
-                {
-                    Console.WriteLine(info.CloseStatusDescription);
-                });
-                await ws.Start();
-                
                 
                 var userAgent = "RingCentral.Softphone.Net";
                 var fakeDomain = $"{Guid.NewGuid().ToString()}.invalid";
                 var fakeEmail = $"{Guid.NewGuid().ToString()}@{fakeDomain}";
-                
                 var registrationMessage = new SipMessage($"REGISTER sip:{sipInfo.domain} SIP/2.0",
                     new Dictionary<string, string>
                     {
@@ -79,12 +68,50 @@ namespace RingCentral.Softphone.Demo
                         {"Content-Length", "0"},
                         {"Max-Forwards", "70"}
                     }, "");
-                ws.Send(registrationMessage.ToMessage());
+                
+                ws.MessageReceived.Subscribe(responseMessage =>
+                {
+                    Console.WriteLine("Receiving...\n" + responseMessage.Text);
+                    var sipMessage = SipMessage.FromMessage(responseMessage.Text);
+                    
+                    // authorize failed with nonce in header
+                    if (sipMessage.Subject == "SIP/2.0 401 Unauthorized")
+                    {
+                        var nonceMessage = sipMessage;
+                        var wwwAuth = "";
+                        if (nonceMessage.Headers.ContainsKey("WWW-Authenticate"))
+                        {
+                            wwwAuth = nonceMessage.Headers["WWW-Authenticate"];
+                        }
+                        else if (nonceMessage.Headers.ContainsKey("Www-Authenticate"))
+                        {
+                            wwwAuth = nonceMessage.Headers["Www-Authenticate"];
+                        }
+
+                        var regex = new Regex(", nonce=\"(.+?)\"");
+                        var match = regex.Match(wwwAuth);
+                        var nonce = match.Groups[1].Value;
+                        var auth = Net.Utils.GenerateAuthorization(sipInfo, "REGISTER", nonce);
+                        registrationMessage.Headers["Authorization"] = auth;
+                        registrationMessage.Headers["CSeq"] = "8083 REGISTER";
+                        registrationMessage.Headers["Via"] =
+                            $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}";
+                        SendMessage(registrationMessage);
+                    }
+                });
+                await ws.Start();
+
+                void SendMessage(SipMessage sipMessage)
+                {
+                    var message = sipMessage.ToMessage();
+                    Console.WriteLine("Sending...\n" + message);
+                    ws.Send(message);
+                }
+                
+                
+                SendMessage(registrationMessage);
                 
                 await Task.Delay(999999999);
-                // var client = new TcpClient();
-                // var tokens = sipInfo.outboundProxy.Split(":");
-                // await client.ConnectAsync(tokens[0], int.Parse(tokens[1]));
                 // var rtpSession = new RTPSession(false, false, false);
                 //
        
