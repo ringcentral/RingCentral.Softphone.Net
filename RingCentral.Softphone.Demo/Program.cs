@@ -93,8 +93,8 @@ namespace RingCentral.Softphone.Demo
                 // send first registration message
                 SendMessage(registrationMessage);
 
-                // Do not exit, wait for the incoming audio
-                while (true) // wait for server message forever
+                // wait for server messages forever
+                while (true) 
                 {
                     await Task.Delay(100);
                     if (cachedMessages.Length > 0)
