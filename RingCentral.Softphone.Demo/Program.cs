@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,29 +24,12 @@ namespace RingCentral.Softphone.Demo
 
             Task.Run(async () =>
             {
-                using var rc = new RestClient(
-                    Environment.GetEnvironmentVariable("RINGCENTRAL_CLIENT_ID"),
-                    Environment.GetEnvironmentVariable("RINGCENTRAL_CLIENT_SECRET"),
-                    Environment.GetEnvironmentVariable("RINGCENTRAL_SERVER_URL")
-                );
-                await rc.Authorize(
-                    Environment.GetEnvironmentVariable("RINGCENTRAL_JWT_TOKEN")
-                );
-                var sipProvision = await rc.Restapi().ClientInfo().SipProvision().Post(new CreateSipRegistrationRequest
-                {
-                    sipInfo = new[]
-                    {
-                        new SIPInfoRequest
-                        {
-                            transport = "TCP"
-                        }
-                    },
-                    device = new DeviceInfoRequest
-                    {
-                        computerName = Environment.MachineName
-                    }
-                });
-                var sipInfo = sipProvision.sipInfo[0];
+                var sipInfo = new SipInfoResponse();
+                sipInfo.domain = Environment.GetEnvironmentVariable("SIP_INFO_DOMAIN");
+                sipInfo.password = Environment.GetEnvironmentVariable("SIP_INFO_PASSWORD");
+                sipInfo.outboundProxy = Environment.GetEnvironmentVariable("SIP_INFO_OUTBOUND_PROXY");
+                sipInfo.authorizationId = Environment.GetEnvironmentVariable("SIP_INFO_AUTHORIZATION_ID");
+                sipInfo.username = Environment.GetEnvironmentVariable("SIP_INFO_USERNAME");
 
                 var client = new TcpClient();
                 var tokens = sipInfo.outboundProxy.Split(":");
