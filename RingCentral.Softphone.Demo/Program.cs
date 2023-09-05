@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using dotenv.net;
+using Nager.TcpClient;
 using RingCentral.Softphone.Net;
 using SIPSorcery.Net;
 using SIPSorcery.SIP.App;
 using SIPSorceryMedia.Abstractions;
-using Nager.TcpClient;
 
 namespace RingCentral.Softphone.Demo
 {
@@ -32,9 +30,8 @@ namespace RingCentral.Softphone.Demo
                 sipInfo.username = Environment.GetEnvironmentVariable("SIP_INFO_USERNAME");
 
                 var client = new TcpClient();
-                var tokens = sipInfo.outboundProxy.Split(":");
+                var tokens = sipInfo.outboundProxy!.Split(":");
                 await client.ConnectAsync(tokens[0], int.Parse(tokens[1]));
-                var rtpSession = new RTPSession(false, false, false);
 
                 var userAgent = "RingCentral.Softphone.Net";
                 var fakeDomain = $"{Guid.NewGuid().ToString()}.invalid";
@@ -57,7 +54,7 @@ namespace RingCentral.Softphone.Demo
                 var cachedMessages = "";
 
                 // receive message
-                async void OnDataReceived(byte[] receivedData)
+                void OnDataReceived(byte[] receivedData)
                 {
                     var data = Encoding.UTF8.GetString(receivedData);
                     Console.WriteLine("Receiving...\n" + data);
@@ -78,15 +75,17 @@ namespace RingCentral.Softphone.Demo
                 // send first registration message
                 SendMessage(registrationMessage);
 
+                RTPSession latestSession = null;
+
                 // wait for server messages forever
-                while (true) 
+                while (true)
                 {
                     await Task.Delay(100);
                     if (cachedMessages.Length > 0)
                     {
                         // just in case, sometimes we only receive half a message, wait for the other half
-                        await Task.Delay(100); 
-                        
+                        await Task.Delay(100);
+
                         var tempMessages = cachedMessages.Split("\r\n\r\nSIP/2.0 ");
                         // sometimes we receive two messages in one data
                         if (tempMessages.Length > 1)
@@ -105,7 +104,7 @@ namespace RingCentral.Softphone.Demo
                         {
                             // The purpose of sending a DTMF tone is if our SDP had a private IP address then the server needs to get at least
                             // one RTP packet to know where to send.
-                            await rtpSession.SendDtmf(0, CancellationToken.None);
+                            await latestSession!.SendDtmf(0, CancellationToken.None);
                         }
 
                         // authorize failed with nonce in header
@@ -136,6 +135,8 @@ namespace RingCentral.Softphone.Demo
                         // whenever there is an inbound call
                         if (sipMessage.Subject.StartsWith("INVITE sip:"))
                         {
+                            var rtpSession = new RTPSession(false, false, false);
+                            latestSession = rtpSession;
                             var inviteSipMessage = sipMessage;
                             MediaStreamTrack audioTrack = new MediaStreamTrack(new List<AudioFormat>
                                 {new AudioFormat(SDPWellKnownMediaFormatsEnum.PCMU)});
