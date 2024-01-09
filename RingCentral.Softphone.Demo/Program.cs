@@ -20,6 +20,8 @@ namespace RingCentral.Softphone.Demo
         {
             DotEnv.Load(new DotEnvOptions().WithOverwriteExistingVars());
 
+            var cseq = 8082;
+
             Task.Run(async () =>
             {
                 var sipInfo = new SipInfoResponse();
@@ -36,20 +38,24 @@ namespace RingCentral.Softphone.Demo
                 var userAgent = "RingCentral.Softphone.Net";
                 var fakeDomain = $"{Guid.NewGuid().ToString()}.invalid";
                 var fakeEmail = $"{Guid.NewGuid().ToString()}@{fakeDomain}";
-
-                var registrationMessage = new SipMessage($"REGISTER sip:{sipInfo.domain} SIP/2.0",
-                    new Dictionary<string, string>
-                    {
-                        {"Call-ID", Guid.NewGuid().ToString()},
-                        {"User-Agent", userAgent},
-                        {"Contact", $"<sip:{fakeEmail};transport=tcp>;expires=600"},
-                        {"Via", $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}"},
-                        {"From", $"<sip:{sipInfo.username}@{sipInfo.domain}>;tag={Guid.NewGuid().ToString()}"},
-                        {"To", $"<sip:{sipInfo.username}@{sipInfo.domain}>"},
-                        {"CSeq", "8082 REGISTER"},
-                        {"Content-Length", "0"},
-                        {"Max-Forwards", "70"}
-                    }, "");
+                
+                var newRegistrationMessage = new Func<SipMessage>(() =>
+                {
+                    return new SipMessage($"REGISTER sip:{sipInfo.domain} SIP/2.0",
+                        new Dictionary<string, string>
+                        {
+                            {"Call-ID", Guid.NewGuid().ToString()},
+                            {"User-Agent", userAgent},
+                            {"Contact", $"<sip:{fakeEmail};transport=tcp>;expires=600"},
+                            {"Via", $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}"},
+                            {"From", $"<sip:{sipInfo.username}@{sipInfo.domain}>;tag={Guid.NewGuid().ToString()}"},
+                            {"To", $"<sip:{sipInfo.username}@{sipInfo.domain}>"},
+                            {"CSeq", $"{cseq++} REGISTER"},
+                            {"Content-Length", "0"},
+                            {"Max-Forwards", "70"}
+                        }, "");
+                });
+                var registrationMessage = newRegistrationMessage();
 
                 var cachedMessages = "";
 
@@ -74,6 +80,13 @@ namespace RingCentral.Softphone.Demo
 
                 // send first registration message
                 SendMessage(registrationMessage);
+
+                // register every 3 minutes to keep it alive
+                var timer = new Timer(state =>
+                {
+                    registrationMessage = newRegistrationMessage();
+                    SendMessage(registrationMessage);
+                }, null, 180000, 180000);
 
                 RTPSession latestSession = null;
 
@@ -126,7 +139,7 @@ namespace RingCentral.Softphone.Demo
                             var nonce = match.Groups[1].Value;
                             var auth = Net.Utils.GenerateAuthorization(sipInfo, "REGISTER", nonce);
                             registrationMessage.Headers["Authorization"] = auth;
-                            registrationMessage.Headers["CSeq"] = "8083 REGISTER";
+                            registrationMessage.Headers["CSeq"] = $"{cseq++} REGISTER";
                             registrationMessage.Headers["Via"] =
                                 $"SIP/2.0/TCP {fakeDomain};branch=z9hG4bK{Guid.NewGuid().ToString()}";
                             SendMessage(registrationMessage);
@@ -147,10 +160,18 @@ namespace RingCentral.Softphone.Demo
                             Console.WriteLine(result);
                             var answer = rtpSession.CreateAnswer(null);
 
+                            var counter = 0;
                             rtpSession.OnRtpPacketReceived +=
                                 (IPEndPoint remoteEndPoint, SDPMediaTypesEnum mediaType, RTPPacket rtpPacket) =>
                                 {
-                                    Console.WriteLine("OnRtpPacketReceived");
+                                    counter += 1;
+                                    if (counter % 10000 == 0) // happens every 3-4 minutes
+                                    {
+                                        counter = 0;
+                                        latestSession!.SendDtmf(0, CancellationToken.None);
+                                        Console.WriteLine("send DTMF to remote server to prevent it from BYE me every 15 minutes");
+                                    }
+                                    // Console.WriteLine("OnRtpPacketReceived");
                                 };
 
                             sipMessage =
