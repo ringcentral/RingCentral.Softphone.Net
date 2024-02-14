@@ -168,7 +168,7 @@ namespace RingCentral.Softphone.Demo
                                     if (counter % 10000 == 0) // happens every 3-4 minutes
                                     {
                                         counter = 0;
-                                        latestSession!.SendDtmf(0, CancellationToken.None);
+                                        rtpSession!.SendDtmf(0, CancellationToken.None);
                                         Console.WriteLine("send DTMF to remote server to prevent it from BYE me every 15 minutes");
                                     }
                                     // Console.WriteLine("OnRtpPacketReceived");
